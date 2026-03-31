@@ -214,6 +214,26 @@ body {
   color: var(--accent);
 }
 
+.tag-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tag-rename-input {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.15);
+}
+
 /* Main */
 .main {
   margin-left: var(--sidebar-width);

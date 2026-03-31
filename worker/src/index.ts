@@ -5,7 +5,7 @@ import { authenticate } from './middleware/auth';
 import { corsHeaders, handleCors } from './middleware/cors';
 import { handleUpload } from './routes/upload';
 import { handleFetch } from './routes/fetch';
-import { handleList, handleGetOne, handleGetFile, handleUpdate, handleDelete, handleTags } from './routes/images';
+import { handleList, handleGetOne, handleGetFile, handleUpdate, handleDelete, handleTags, handleRenameTag } from './routes/images';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -41,11 +41,15 @@ export default {
       } else if (path === '/api/tags' && method === 'GET') {
         response = await handleTags(env);
       } else {
+        // Match /api/tags/:name (rename tag)
+        const tagMatch = path.match(/^\/api\/tags\/(.+)$/);
         // Match /api/images/:id and /api/images/:id/file
         const imageMatch = path.match(/^\/api\/images\/([a-f0-9-]+)$/);
         const fileMatch = path.match(/^\/api\/images\/([a-f0-9-]+)\/file$/);
 
-        if (fileMatch && method === 'GET') {
+        if (tagMatch && method === 'PATCH') {
+          response = await handleRenameTag(decodeURIComponent(tagMatch[1]), request, env);
+        } else if (fileMatch && method === 'GET') {
           response = await handleGetFile(fileMatch[1], env);
         } else if (imageMatch) {
           const id = imageMatch[1];

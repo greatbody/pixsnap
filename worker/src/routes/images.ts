@@ -201,3 +201,63 @@ export async function handleTags(env: Env): Promise<Response> {
 
   return Response.json({ tags });
 }
+
+/**
+ * PATCH /api/tags/:name - Rename a tag globally across all images
+ */
+export async function handleRenameTag(
+  oldName: string,
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const body = await request.json<{ name?: string }>();
+  const newName = body.name?.trim();
+
+  if (!newName) {
+    return Response.json({ error: 'New tag name is required' }, { status: 400 });
+  }
+
+  if (newName === oldName) {
+    return Response.json({ error: 'New name is the same as the old name' }, { status: 400 });
+  }
+
+  // Find all images that contain the old tag
+  const rows = await env.DB.prepare(
+    `SELECT id, tags FROM images WHERE tags LIKE ?`
+  )
+    .bind(`%"${oldName}"%`)
+    .all<{ id: string; tags: string }>();
+
+  let updatedCount = 0;
+
+  for (const row of rows.results || []) {
+    try {
+      const tags: string[] = JSON.parse(row.tags || '[]');
+      const idx = tags.indexOf(oldName);
+      if (idx === -1) continue;
+
+      // Replace old tag with new tag, avoid duplicates
+      if (tags.includes(newName)) {
+        // New name already exists on this image, just remove the old one
+        tags.splice(idx, 1);
+      } else {
+        tags[idx] = newName;
+      }
+
+      await env.DB.prepare('UPDATE images SET tags = ? WHERE id = ?')
+        .bind(JSON.stringify(tags), row.id)
+        .run();
+
+      updatedCount++;
+    } catch {
+      // Skip malformed tags
+    }
+  }
+
+  return Response.json({
+    success: true,
+    oldName,
+    newName,
+    updatedCount,
+  });
+}

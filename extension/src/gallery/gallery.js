@@ -219,16 +219,91 @@ function renderTags() {
     const item = document.createElement('div');
     item.className = `tag-item${state.activeTag === tag.name ? ' active' : ''}`;
     item.innerHTML = `
-      <span>${escapeHtml(tag.name)}</span>
+      <span class="tag-name">${escapeHtml(tag.name)}</span>
       <span class="count">${tag.count}</span>
     `;
-    item.addEventListener('click', () => {
+
+    // Single click: filter by tag
+    item.addEventListener('click', (e) => {
+      // Don't trigger filter when clicking an inline rename input
+      if (e.target.tagName === 'INPUT') return;
       state.activeTag = tag.name;
       resetAndLoad();
       renderTags();
     });
+
+    // Double click: rename tag
+    const nameSpan = item.querySelector('.tag-name');
+    nameSpan.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      startTagRename(item, tag);
+    });
+
     tagList.appendChild(item);
   }
+}
+
+/**
+ * Replace the tag name span with an inline input for renaming.
+ */
+function startTagRename(item, tag) {
+  const nameSpan = item.querySelector('.tag-name');
+  const oldName = tag.name;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tag-rename-input';
+  input.value = oldName;
+
+  nameSpan.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let committed = false;
+
+  async function commit() {
+    if (committed) return;
+    committed = true;
+
+    const newName = input.value.trim();
+    if (!newName || newName === oldName) {
+      // Cancelled or unchanged — restore
+      renderTags();
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/tags/${encodeURIComponent(oldName)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+
+      // If active filter was the old tag, update it
+      if (state.activeTag === oldName) {
+        state.activeTag = newName;
+      }
+
+      // Refresh tags and images (tags in image data may have changed)
+      await Promise.all([loadTags(), loadImages()]);
+    } catch (err) {
+      console.error('[PixSnap] Failed to rename tag:', err);
+      renderTags(); // Restore on error
+    }
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      input.blur();
+    }
+    if (e.key === 'Escape') {
+      committed = true; // Skip commit
+      renderTags();
+    }
+  });
+
+  input.addEventListener('blur', commit);
 }
 
 function updateImageCount(total) {
