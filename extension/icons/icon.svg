@@ -1,13 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <rect width="128" height="128" rx="16" fill="#4CAF50"/>
-  <g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Camera/frame shape -->
-    <rect x="24" y="32" width="80" height="64" rx="8"/>
-    <!-- Lens circle -->
-    <circle cx="64" cy="64" r="18"/>
-    <!-- Flash/snap indicator -->
-    <circle cx="64" cy="64" r="8" fill="#fff" stroke="none"/>
-    <!-- Mountain in viewfinder -->
-    <polyline points="32,88 50,68 62,80 76,60 96,88"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6C5CE7"/>
+      <stop offset="100%" stop-color="#0984E3"/>
+    </linearGradient>
+    <linearGradient id="snap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFEAA7"/>
+      <stop offset="100%" stop-color="#FDCB6E"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
+
+  <!-- Viewfinder / crop marks (4 corners) -->
+  <g stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none">
+    <!-- Top-left corner -->
+    <polyline points="28,50 28,32 46,32"/>
+    <!-- Top-right corner -->
+    <polyline points="82,32 100,32 100,50"/>
+    <!-- Bottom-left corner -->
+    <polyline points="28,78 28,96 46,96"/>
+    <!-- Bottom-right corner -->
+    <polyline points="82,96 100,96 100,78"/>
   </g>
+
+  <!-- Lightning bolt (snap) in the center -->
+  <polygon points="70,30 50,68 64,68 58,98 78,58 64,58" fill="url(#snap)"/>
 </svg>
