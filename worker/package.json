@@ -8,6 +8,8 @@
     "db:migrate": "wrangler d1 execute pixsnap-db --file=./migrations/0001_init.sql"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260329.1",
+    "typescript": "^6.0.2",
     "wrangler": "^4"
   }
 }
