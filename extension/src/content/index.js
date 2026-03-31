@@ -1,71 +1,148 @@
 // PixSnap - Content Script
-// Adds a subtle overlay on hovered images for quick capture
+// Shows capture buttons when hovering over images
 
 (function () {
   'use strict';
 
-  let overlay = null;
+  let toolbar = null;
   let currentTarget = null;
+  let hideTimer = null;
+  let trackingFrame = null;
 
-  function createOverlay() {
+  const MIN_SIZE = 60;
+
+  function createToolbar() {
     const el = document.createElement('div');
-    el.className = 'pixsnap-overlay';
+    el.className = 'pixsnap-toolbar';
     el.innerHTML = `
-      <div class="pixsnap-overlay-bar">
-        <button class="pixsnap-btn pixsnap-btn-upload" title="Capture (upload)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-        </button>
-        <button class="pixsnap-btn pixsnap-btn-fetch" title="Capture (URL)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-          </svg>
-        </button>
-      </div>
+      <button class="pixsnap-btn pixsnap-btn-upload" title="Capture (upload)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </button>
+      <button class="pixsnap-btn pixsnap-btn-fetch" title="Capture (URL)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
+      </button>
     `;
     document.body.appendChild(el);
+
+    el.querySelector('.pixsnap-btn-upload').addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      captureImage('capture-local');
+    });
+
+    el.querySelector('.pixsnap-btn-fetch').addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      captureImage('capture-remote');
+    });
+
+    // Keep toolbar visible while mouse is on it
+    el.addEventListener('mouseenter', () => {
+      cancelHide();
+    });
+
+    el.addEventListener('mouseleave', () => {
+      scheduleHide();
+    });
+
     return el;
   }
 
-  function showOverlay(img) {
-    if (!overlay) {
-      overlay = createOverlay();
+  /**
+   * Position the toolbar at the top-right corner of the image,
+   * using fixed positioning (viewport coordinates) so scrolling
+   * doesn't leave it stranded.
+   */
+  function positionToolbar(img) {
+    const rect = img.getBoundingClientRect();
 
-      overlay.querySelector('.pixsnap-btn-upload').addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        captureImage('capture-local');
-      });
+    // Clamp to viewport
+    const top = Math.max(4, rect.top + 4);
+    const right = Math.max(4, window.innerWidth - rect.right + 4);
 
-      overlay.querySelector('.pixsnap-btn-fetch').addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        captureImage('capture-remote');
-      });
+    toolbar.style.top = `${top}px`;
+    toolbar.style.right = `${right}px`;
+    toolbar.style.left = '';
+  }
+
+  function showToolbar(img) {
+    if (!toolbar) {
+      toolbar = createToolbar();
     }
 
     const rect = img.getBoundingClientRect();
+    if (rect.width < MIN_SIZE || rect.height < MIN_SIZE) return;
 
-    // Only show overlay on images large enough to be meaningful
-    if (rect.width < 60 || rect.height < 60) return;
+    // If image is not visible in viewport at all, don't show
+    if (rect.bottom < 0 || rect.top > window.innerHeight ||
+        rect.right < 0 || rect.left > window.innerWidth) return;
 
-    overlay.style.top = `${rect.top + window.scrollY}px`;
-    overlay.style.left = `${rect.left + window.scrollX}px`;
-    overlay.style.width = `${rect.width}px`;
-    overlay.style.height = `${rect.height}px`;
-    overlay.style.display = 'block';
     currentTarget = img;
+    cancelHide();
+    positionToolbar(img);
+    toolbar.classList.add('pixsnap-visible');
+
+    // Start tracking position (handles scroll & resize smoothly)
+    startTracking();
   }
 
-  function hideOverlay() {
-    if (overlay) {
-      overlay.style.display = 'none';
+  function hideToolbar() {
+    if (toolbar) {
+      toolbar.classList.remove('pixsnap-visible');
     }
     currentTarget = null;
+    stopTracking();
+  }
+
+  function scheduleHide() {
+    cancelHide();
+    hideTimer = setTimeout(hideToolbar, 200);
+  }
+
+  function cancelHide() {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+  }
+
+  /**
+   * Use requestAnimationFrame to keep the toolbar pinned
+   * to the image as the page scrolls or resizes.
+   * This is much smoother than scroll event listeners.
+   */
+  function startTracking() {
+    stopTracking();
+    function track() {
+      if (!currentTarget) return;
+
+      const rect = currentTarget.getBoundingClientRect();
+
+      // If image scrolled out of view, hide toolbar
+      if (rect.bottom < 0 || rect.top > window.innerHeight ||
+          rect.right < 0 || rect.left > window.innerWidth) {
+        hideToolbar();
+        return;
+      }
+
+      positionToolbar(currentTarget);
+      trackingFrame = requestAnimationFrame(track);
+    }
+    trackingFrame = requestAnimationFrame(track);
+  }
+
+  function stopTracking() {
+    if (trackingFrame) {
+      cancelAnimationFrame(trackingFrame);
+      trackingFrame = null;
+    }
   }
 
   function captureImage(type) {
@@ -90,7 +167,7 @@
       }
     });
 
-    hideOverlay();
+    hideToolbar();
   }
 
   function flashSuccess() {
@@ -100,37 +177,37 @@
     setTimeout(() => flash.remove(), 600);
   }
 
-  // Throttled mousemove to detect image hover
-  let hoverTimeout = null;
+  // ====== Event handling ======
+
+  // Track the image under the mouse pointer.
+  // We use mouseover on document and check if target is an <img>.
   document.addEventListener('mouseover', (e) => {
-    clearTimeout(hoverTimeout);
-    hoverTimeout = setTimeout(() => {
-      const img = e.target.closest('img');
-      if (img && img.src) {
-        showOverlay(img);
+    const img = e.target.closest('img');
+    if (img && img.src) {
+      // Don't re-trigger if already showing for this image
+      if (currentTarget === img) {
+        cancelHide();
+        return;
       }
-    }, 200);
-  });
+      showToolbar(img);
+    }
+  }, true);
 
   document.addEventListener('mouseout', (e) => {
-    if (overlay && !overlay.contains(e.relatedTarget) && e.target.tagName === 'IMG') {
-      setTimeout(() => {
-        if (overlay && !overlay.matches(':hover')) {
-          hideOverlay();
-        }
-      }, 300);
-    }
-  });
+    const img = e.target.closest('img');
+    if (!img) return;
 
-  // Hide overlay on scroll
-  let scrollTimer = null;
-  window.addEventListener('scroll', () => {
-    if (overlay) overlay.style.display = 'none';
-    clearTimeout(scrollTimer);
-    scrollTimer = setTimeout(() => {
-      if (currentTarget) {
-        showOverlay(currentTarget);
-      }
-    }, 150);
-  }, { passive: true });
+    // If mouse moved to the toolbar, don't hide
+    if (toolbar && toolbar.contains(e.relatedTarget)) {
+      cancelHide();
+      return;
+    }
+
+    // If mouse moved to another part of the same image, don't hide
+    if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('img') === img) {
+      return;
+    }
+
+    scheduleHide();
+  }, true);
 })();
