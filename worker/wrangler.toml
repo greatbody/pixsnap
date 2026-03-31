@@ -1,0 +1,18 @@
+#:schema node_modules/wrangler/config-schema.json
+
+name = "pixsnap-worker"
+main = "src/index.ts"
+compatibility_date = "2025-03-30"
+
+[vars]
+ALLOWED_ORIGINS = ""
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pixsnap-db"
+database_id = "<YOUR_D1_DATABASE_ID>"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "pixsnap-images"

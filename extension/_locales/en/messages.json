@@ -1,0 +1,18 @@
+{
+  "appName": {
+    "message": "PixSnap",
+    "description": "Extension name"
+  },
+  "appDesc": {
+    "message": "Capture and collect images from the web to your own Cloudflare storage.",
+    "description": "Extension description"
+  },
+  "contextMenuUpload": {
+    "message": "PixSnap: Capture image (upload)",
+    "description": "Context menu item for local upload mode"
+  },
+  "contextMenuFetch": {
+    "message": "PixSnap: Capture image (URL)",
+    "description": "Context menu item for server fetch mode"
+  }
+}

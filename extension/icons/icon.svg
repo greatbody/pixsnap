@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="16" fill="#4CAF50"/>
+  <g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Camera/frame shape -->
+    <rect x="24" y="32" width="80" height="64" rx="8"/>
+    <!-- Lens circle -->
+    <circle cx="64" cy="64" r="18"/>
+    <!-- Flash/snap indicator -->
+    <circle cx="64" cy="64" r="8" fill="#fff" stroke="none"/>
+    <!-- Mountain in viewfinder -->
+    <polyline points="32,88 50,68 62,80 76,60 96,88"/>
+  </g>
+</svg>

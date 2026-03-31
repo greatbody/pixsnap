@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PixSnap</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup">
+    <header class="popup-header">
+      <h1>PixSnap</h1>
+      <span id="status-dot" class="status-dot" title="Not configured"></span>
+    </header>
+
+    <!-- Main View -->
+    <div id="view-main">
+      <section class="section">
+        <h2>Quick Capture</h2>
+        <div class="input-group">
+          <input type="url" id="manual-url" placeholder="Paste image URL...">
+          <div class="btn-group">
+            <button id="btn-upload" class="btn btn-green" title="Upload via browser">Upload</button>
+            <button id="btn-fetch" class="btn btn-blue" title="Fetch via server">Fetch</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Recent Captures</h2>
+        <div id="recent-list" class="recent-list">
+          <p class="muted">No captures yet.</p>
+        </div>
+      </section>
+
+      <footer class="popup-footer">
+        <button id="btn-gallery" class="btn btn-text">Open Gallery</button>
+        <button id="btn-settings" class="btn btn-text">Settings</button>
+      </footer>
+    </div>
+
+    <!-- Settings View -->
+    <div id="view-settings" class="hidden">
+      <section class="section">
+        <h2>Settings</h2>
+        <label>
+          Worker URL
+          <input type="url" id="setting-worker-url" placeholder="https://pixsnap.example.workers.dev">
+        </label>
+        <label>
+          API Token
+          <input type="password" id="setting-api-token" placeholder="Your secret token">
+        </label>
+        <label>
+          Default Mode
+          <select id="setting-default-mode">
+            <option value="local">Local (upload via browser)</option>
+            <option value="remote">Remote (server fetch)</option>
+          </select>
+        </label>
+        <div class="btn-group">
+          <button id="btn-save-settings" class="btn btn-green">Save</button>
+          <button id="btn-back" class="btn btn-text">Back</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
