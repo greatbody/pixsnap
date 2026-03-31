@@ -151,6 +151,9 @@
     const imageUrl = currentTarget.src || currentTarget.currentSrc;
     if (!imageUrl) return;
 
+    const mode = type === 'capture-local' ? 'uploading' : 'fetching';
+    showToast('info', `Capturing... ${mode} image`);
+
     chrome.runtime.sendMessage({
       type: type,
       imageUrl: imageUrl,
@@ -161,20 +164,54 @@
       },
     }, (response) => {
       if (response?.success) {
-        flashSuccess();
+        showToast('success', 'Image captured successfully');
       } else {
-        console.warn('[PixSnap] Capture failed:', response?.error);
+        showToast('error', `Capture failed: ${response?.error || 'Unknown error'}`);
       }
     });
 
     hideToolbar();
   }
 
-  function flashSuccess() {
-    const flash = document.createElement('div');
-    flash.className = 'pixsnap-flash';
-    document.body.appendChild(flash);
-    setTimeout(() => flash.remove(), 600);
+  // ====== Toast notification system ======
+
+  let toastContainer = null;
+
+  const TOAST_ICONS = {
+    info: `<svg class="pixsnap-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+    success: `<svg class="pixsnap-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    error: `<svg class="pixsnap-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+  };
+
+  function ensureToastContainer() {
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.className = 'pixsnap-toast-container';
+      document.body.appendChild(toastContainer);
+    }
+    return toastContainer;
+  }
+
+  function showToast(type, message) {
+    const container = ensureToastContainer();
+
+    const toast = document.createElement('div');
+    toast.className = `pixsnap-toast pixsnap-toast-${type}`;
+    toast.innerHTML = `${TOAST_ICONS[type] || ''}<span class="pixsnap-toast-text">${escapeHtml(message)}</span>`;
+
+    container.appendChild(toast);
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+      toast.classList.add('pixsnap-toast-out');
+      toast.addEventListener('animationend', () => toast.remove());
+    }, 3000);
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   // ====== Event handling ======
