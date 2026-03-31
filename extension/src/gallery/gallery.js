@@ -176,16 +176,20 @@ function createImageCard(img, index) {
   card.dataset.id = img.id;
   card.dataset.index = index;
 
-  const thumbUrl = getImageUrl(img.id);
-
   card.innerHTML = `
     <div class="checkbox">${state.selected.has(img.id) ? '&#10003;' : ''}</div>
-    <img class="thumb" src="${thumbUrl}" alt="${escapeHtml(img.filename)}" loading="lazy">
+    <img class="thumb" src="" alt="${escapeHtml(img.filename)}" loading="lazy">
     <div class="card-info">
       <div class="card-title">${escapeHtml(img.filename)}</div>
       <div class="card-meta">${formatSize(img.size)} &middot; ${formatDate(img.created_at)}</div>
     </div>
   `;
+
+  // Async load image with auth
+  const thumbEl = card.querySelector('.thumb');
+  fetchAuthenticatedImage(img.id).then(url => {
+    if (url) thumbEl.src = url;
+  });
 
   card.addEventListener('click', (e) => {
     if (state.selectMode) {
@@ -305,8 +309,13 @@ function navigateDetail(direction) {
 }
 
 function updateLightboxContent(img) {
-  const imageUrl = getImageUrl(img.id);
-  $('#lightbox-image').src = imageUrl;
+  // Load image with auth
+  const lightboxImg = $('#lightbox-image');
+  lightboxImg.src = ''; // Clear while loading
+  fetchAuthenticatedImage(img.id).then(url => {
+    if (url) lightboxImg.src = url;
+  });
+
   $('#detail-filename').textContent = img.filename || 'untitled';
   $('#detail-size').textContent = formatSize(img.size);
   $('#detail-dimensions').textContent = img.width && img.height ? `${img.width} x ${img.height}` : 'Unknown';
@@ -327,10 +336,13 @@ function updateLightboxContent(img) {
   const tags = parseTags(img.tags);
   renderDetailTags(tags);
 
-  // Download link
+  // Download link - use blob URL for authenticated download
   const downloadBtn = $('#btn-download');
-  downloadBtn.href = imageUrl;
+  downloadBtn.removeAttribute('href');
   downloadBtn.download = img.filename || 'image';
+  fetchAuthenticatedImage(img.id).then(url => {
+    if (url) downloadBtn.href = url;
+  });
 }
 
 function renderDetailTags(tags) {
@@ -519,10 +531,30 @@ function handleScroll() {
 
 // ====== Helpers ======
 
-function getImageUrl(id) {
-  // Construct the image file URL from settings
+/**
+ * Fetch an image with auth header and return an Object URL.
+ * Caches blob URLs to avoid redundant requests.
+ */
+const blobUrlCache = new Map();
+
+async function fetchAuthenticatedImage(id) {
+  if (blobUrlCache.has(id)) return blobUrlCache.get(id);
+
+  try {
+    const response = await apiRequest(`/api/images/${id}/file`);
+    // apiRequest returns the raw Response for non-JSON content types
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    blobUrlCache.set(id, url);
+    return url;
+  } catch (err) {
+    console.error(`[PixSnap] Failed to load image ${id}:`, err);
+    return '';
+  }
+}
+
+function getImageApiPath(id) {
   const workerUrl = settingsCache?.workerUrl || '';
-  const token = settingsCache?.apiToken || '';
   if (!workerUrl) return '';
   return `${workerUrl.replace(/\/+$/, '')}/api/images/${id}/file`;
 }

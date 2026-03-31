@@ -10,7 +10,7 @@ ALLOWED_ORIGINS = ""
 [[d1_databases]]
 binding = "DB"
 database_name = "pixsnap-db"
-database_id = "<YOUR_D1_DATABASE_ID>"
+database_id = "1d4d3c64-086b-4c42-94b0-e8b71d269ed7"
 migrations_dir = "migrations"
 
 [[r2_buckets]]
